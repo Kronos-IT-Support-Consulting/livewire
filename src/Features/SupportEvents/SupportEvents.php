@@ -58,18 +58,18 @@ class SupportEvents extends ComponentHook
             $isLazyLoadMounting = store($this->component)->get('isLazyLoadMounting') === true;
 
             if ($isLazyLoadMounting) {
-                $isLazyListening = store($this->component)->get('isLazyListening') === true;
+                $lazyListening = store($this->component)->get('lazyListening') === true;
 
-                $listeners && $isLazyListening && $context->addEffect('listeners', $listeners);
+                $listeners && $lazyListening && $context->addEffect('listeners', $listeners);
             } else {
                 $listeners && $context->addEffect('listeners', $listeners);
             }
         } else {
             $isLazyLoadHydrating = store($this->component)->get('isLazyLoadHydrating') === true;
-            $isLazyListening = store($this->component)->get('isLazyListening') === true;
+            $lazyListening = store($this->component)->get('lazyListening') === true;
 
             // Add listener effects when lazy-loaded components are mounting
-            if ($isLazyLoadHydrating && ! $isLazyListening) {
+            if ($isLazyLoadHydrating && ! $lazyListening) {
                 $listeners = static::getListenerEventNames($this->component);
 
                 $listeners && $context->addEffect('listeners', $listeners);
