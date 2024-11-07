@@ -15,6 +15,15 @@ class SupportEvents extends ComponentHook
     function call($method, $params, $returnEarly)
     {
         if ($method === '__dispatch') {
+            /// It's a lazy component that has just being hydrated
+//            if (store($this->component)->get('isLazyLoadHydrating')) {
+//                $hook = new SupportLazyLoading;
+//
+//                $hook->setComponent($this->component);
+//
+//                $hook->call('__lazyLoad', $params, $returnEarly);
+//            }
+
             [$name, $params] = $params;
 
             $names = static::getListenerEventNames($this->component);
@@ -33,10 +42,10 @@ class SupportEvents extends ComponentHook
             // is "renderless" as it's normal "call" hook doesn't get run when
             // the method is called as an event listener...
             $isRenderless = $this->component->getAttributes()
-                ->filter(fn ($i) => is_subclass_of($i, BaseRenderless::class))
-                ->filter(fn ($i) => $i->getName() === $method)
-                ->filter(fn ($i) => $i->getLevel() === AttributeLevel::METHOD)
-                ->count() > 0;
+                    ->filter(fn ($i) => is_subclass_of($i, BaseRenderless::class))
+                    ->filter(fn ($i) => $i->getName() === $method)
+                    ->filter(fn ($i) => $i->getLevel() === AttributeLevel::METHOD)
+                    ->count() > 0;
 
             if ($isRenderless) $this->component->skipRender();
         }
@@ -46,17 +55,25 @@ class SupportEvents extends ComponentHook
     {
         if ($context->mounting) {
             $listeners = static::getListenerEventNames($this->component);
-            // Skip events for lazy-loaded components so they won't wake up on event dispatch
             $isLazyLoadMounting = store($this->component)->get('isLazyLoadMounting') === true;
 
-            $listeners && ! $isLazyLoadMounting && $context->addEffect('listeners', $listeners);
-        }
+            if ($isLazyLoadMounting) {
+                $isLazyListening = store($this->component)->get('isLazyListening') === true;
 
-        // Add listener effects when lazy-loaded components are mounting
-        if (store($this->component)->get('isLazyLoadHydrating') === true) {
-            $listeners = static::getListenerEventNames($this->component);
+                $listeners && $isLazyListening && $context->addEffect('listeners', $listeners);
+            } else {
+                $listeners && $context->addEffect('listeners', $listeners);
+            }
+        } else {
+            $isLazyLoadHydrating = store($this->component)->get('isLazyLoadHydrating') === true;
+            $isLazyListening = store($this->component)->get('isLazyListening') === true;
 
-            $listeners && $context->addEffect('listeners', $listeners);
+            // Add listener effects when lazy-loaded components are mounting
+            if ($isLazyLoadHydrating && ! $isLazyListening) {
+                $listeners = static::getListenerEventNames($this->component);
+
+                $listeners && $context->addEffect('listeners', $listeners);
+            }
         }
 
         $dispatches = $this->getServerDispatchedEvents($this->component);
